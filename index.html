@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduPoster Pro — Studio Pembuat Poster Modul Otomatis</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <!-- html2canvas & jsPDF for Image & PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                        serif: ['"Playfair Display"', 'serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Poster Theme Variables */
+        .theme-emerald {
+            --p-primary: #065f46;
+            --p-primary-dark: #064e3b;
+            --p-secondary: #10b981;
+            --p-accent: #f59e0b;
+            --p-light: #ecfdf5;
+            --p-border: #a7f3d0;
+            --p-surface: #ffffff;
+            --p-bg: #f8fafc;
+        }
+        .theme-indigo {
+            --p-primary: #1e3a8a;
+            --p-primary-dark: #172554;
+            --p-secondary: #3b82f6;
+            --p-accent: #f43f5e;
+            --p-light: #eff6ff;
+            --p-border: #bfdbfe;
+            --p-surface: #ffffff;
+            --p-bg: #f8fafc;
+        }
+        .theme-terracotta {
+            --p-primary: #9a3412;
+            --p-primary-dark: #431407;
+            --p-secondary: #ea580c;
+            --p-accent: #0d9488;
+            --p-light: #fff7ed;
+            --p-border: #fed7aa;
+            --p-surface: #ffffff;
+            --p-bg: #fafaf9;
+        }
+        .theme-royal {
+            --p-primary: #581c87;
+            --p-primary-dark: #3b0764;
+            --p-secondary: #9333ea;
+            --p-accent: #eab308;
+            --p-light: #faf5ff;
+            --p-border: #e9d5ff;
+            --p-surface: #ffffff;
+            --p-bg: #f9fafb;
+        }
+        .theme-slate {
+            --p-primary: #1e293b;
+            --p-primary-dark: #0f172a;
+            --p-secondary: #475569;
+            --p-accent: #0ea5e9;
+            --p-light: #f1f5f9;
+            --p-border: #cbd5e1;
+            --p-surface: #ffffff;
+            --p-bg: #f8fafc;
+        }
+
+        /* Editable Highlight Styles */
+        .edit-mode-active [contenteditable="true"] {
+            outline: 1.5px dashed rgba(59, 130, 246, 0.6);
+            outline-offset: 3px;
+            border-radius: 4px;
+            transition: all 0.15s ease;
+            cursor: text;
+        }
+        .edit-mode-active [contenteditable="true"]:hover,
+        .edit-mode-active [contenteditable="true"]:focus {
+            outline: 2px solid #2563eb;
+            background-color: rgba(239, 246, 255, 0.55);
+        }
+
+        .edit-mode-active .img-replace-trigger {
+            opacity: 1 !important;
+            pointer-events: auto !important;
+        }
+
+        /* Poster Utility Classes driven by CSS Variables */
+        .poster-bg-primary { background-color: var(--p-primary); }
+        .poster-bg-primary-dark { background-color: var(--p-primary-dark); }
+        .poster-bg-secondary { background-color: var(--p-secondary); }
+        .poster-bg-accent { background-color: var(--p-accent); }
+        .poster-bg-light { background-color: var(--p-light); }
+        .poster-text-primary { color: var(--p-primary); }
+        .poster-text-secondary { color: var(--p-secondary); }
+        .poster-text-accent { color: var(--p-accent); }
+        .poster-border-theme { border-color: var(--p-border); }
+        .poster-border-primary { border-color: var(--p-primary); }
+
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #posterCanvas, #posterCanvas * {
+                visibility: visible;
+            }
+            #posterCanvas {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                box-shadow: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-950/90 backdrop-blur-md border-b border-slate-800 text-white sticky top-0 z-40 px-4 lg:px-6 py-3">
+        <div class="max-w-[1600px] mx-auto flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+                    <i class="fa-solid fa-layer-group text-slate-950 text-lg"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-bold text-base sm:text-lg tracking-tight">EduPoster <span class="text-emerald-400">Pro</span></h1>
+                        <span class="text-[11px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">Generator Otomatis</span>
+                    </div>
+                    <p class="text-xs text-slate-400 hidden sm:block">Cukup input Foto & Judul — 12 Komponen Modul Poster Tersusun Otomatis & Siap Diedit</p>
+                </div>
+            </div>
+
+            <!-- Action Toolbar -->
+            <div class="flex flex-wrap items-center gap-2">
+                <!-- Toggle Direct Edit Mode -->
+                <button id="btnToggleInlineEdit" onclick="toggleInlineEditMode()" class="px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-all bg-blue-500/20 border-blue-400/40 text-blue-300 hover:bg-blue-500/30">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                    <span id="inlineEditLabel">Edit Langsung: AKTIF</span>
+                </button>
+
+                <!-- Open Full Structured Editor Modal -->
+                <button onclick="openStructuredEditor()" class="px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-all">
+                    <i class="fa-solid fa-sliders"></i>
+                    <span>Panel Edit Lengkap</span>
+                </button>
+
+                <div class="h-6 w-px bg-slate-800 mx-1 hidden sm:block"></div>
+
+                <!-- Export Buttons -->
+                <div class="flex items-center gap-1.5 bg-slate-900 p-1 rounded-xl border border-slate-800">
+                    <button onclick="exportPoster('pdf')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white flex items-center gap-1.5 shadow transition-all" title="Unduh Poster sebagai PDF">
+                        <i class="fa-solid fa-file-pdf"></i>
+                        <span>PDF</span>
+                    </button>
+                    <button onclick="exportPoster('image')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-1.5 shadow transition-all" title="Unduh Poster sebagai Gambar PNG">
+                        <i class="fa-solid fa-image"></i>
+                        <span>Gambar</span>
+                    </button>
+                    <button onclick="exportPoster('html')" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-600 hover:bg-amber-500 text-white flex items-center gap-1.5 shadow transition-all" title="Unduh Poster sebagai File HTML">
+                        <i class="fa-solid fa-code"></i>
+                        <span>HTML</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace Layout -->
+    <div class="flex-1 max-w-[1600px] w-full mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 p-4 lg:p-6 items-start">
+
+        <!-- LEFT SIDEBAR: Simple Input (Title & Photo) + Theme Controls -->
+        <aside class="lg:col-span-4 xl:col-span-3 bg-slate-900 border border-slate-800 rounded-2xl p-5 text-slate-100 shadow-2xl lg:sticky lg:top-20 space-y-6">
+            <!-- Step 1: Primary Input -->
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Langkah 1: Input Utama
+                    </span>
+                    <span class="text-[11px] text-slate-400">Otomatis 12 Bagian</span>
+                </div>
+
+                <div class="space-y-4">
+                    <!-- Title Input -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Judul Poster / Modul Pembelajaran</label>
+                        <textarea id="inputMainTitle" rows="2" placeholder="Masukkan judul modul atau poster..." class="w-full rounded-xl bg-slate-950 border border-slate-700 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 text-sm text-white p-3 outline-none transition-all resize-none">Transformasi Kecerdasan Buatan & Literasi Data Modern</textarea>
+                        
+                        <!-- Quick Sample Presets -->
+                        <div class="mt-2">
+                            <span class="text-[11px] text-slate-400 block mb-1.5">Contoh ide judul cepat:</span>
+                            <div class="flex flex-wrap gap-1.5">
+                                <button onclick="applyPresetTopic('Transformasi Kecerdasan Buatan & Literasi Data Modern')" class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">🤖 AI & Data</button>
+                                <button onclick="applyPresetTopic('Ekosistem Hijau & Rekayasa Energi Terbarukan')" class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">🌱 Energi Hijau</button>
+                                <button onclick="applyPresetTopic('Manajemen Produk Digital & Strategi Agile')" class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">🚀 Bisnis Digital</button>
+                                <button onclick="applyPresetTopic('Keselamatan Kerja & Mitigasi Risiko Industri')" class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition">⛑️ K3 Industri</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Main Photo Upload -->
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-300 mb-1.5">Foto / Gambar Utama Poster</label>
+                        <label for="inputMainPhoto" class="group cursor-pointer flex flex-col items-center justify-center border-2 border-dashed border-slate-700 hover:border-emerald-400 rounded-xl p-4 bg-slate-950/60 hover:bg-slate-950 transition-all text-center">
+                            <div class="w-10 h-10 rounded-full bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                <i class="fa-solid fa-cloud-arrow-up"></i>
+                            </div>
+                            <span class="text-xs font-semibold text-slate-200">Klik untuk Unggah Foto Utama</span>
+                            <span class="text-[11px] text-slate-400 mt-0.5">JPG, PNG, WEBP (Atau gunakan ilustrasi otomatis)</span>
+                            <input id="inputMainPhoto" type="file" accept="image/*" class="hidden" onchange="handleMainPhotoUpload(event)">
+                        </label>
+                        <div class="flex items-center justify-between mt-2">
+                            <button onclick="regenerateAllIllustrations()" class="text-[11px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-medium">
+                                <i class="fa-solid fa-palette"></i> Buat Ilustrasi Visual Otomatis
+                            </button>
+                            <span id="photoStatusBadge" class="text-[11px] text-slate-400">Visual AI Aktif</span>
+                        </div>
+                    </div>
+
+                    <!-- Generate Button -->
+                    <button onclick="generateFullPosterFromTitle()" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-slate-950 font-bold text-sm shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all transform active:scale-[0.99]">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>Susun Ulang Isi Poster dari Judul</span>
+                    </button>
+                </div>
+            </div>
+
+            <hr class="border-slate-800">
+
+            <!-- Step 2: Theme & Visual Style -->
+            <div>
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block mb-3">
+                    <i class="fa-solid fa-swatchbook mr-1"></i> Tema Warna Poster
+                </span>
+                <div class="grid grid-cols-5 gap-2">
+                    <button onclick="setPosterTheme('theme-emerald')" class="h-9 rounded-xl bg-emerald-700 border-2 border-white/80 flex items-center justify-center shadow hover:scale-105 transition" title="Emerald Akademik"></button>
+                    <button onclick="setPosterTheme('theme-indigo')" class="h-9 rounded-xl bg-blue-800 border-2 border-transparent hover:border-white/60 flex items-center justify-center shadow hover:scale-105 transition" title="Royal Indigo"></button>
+                    <button onclick="setPosterTheme('theme-terracotta')" class="h-9 rounded-xl bg-orange-800 border-2 border-transparent hover:border-white/60 flex items-center justify-center shadow hover:scale-105 transition" title="Terracotta Hangat"></button>
+                    <button onclick="setPosterTheme('theme-royal')" class="h-9 rounded-xl bg-purple-900 border-2 border-transparent hover:border-white/60 flex items-center justify-center shadow hover:scale-105 transition" title="Ungu Eksekutif"></button>
+                    <button onclick="setPosterTheme('theme-slate')" class="h-9 rounded-xl bg-slate-800 border-2 border-transparent hover:border-white/60 flex items-center justify-center shadow hover:scale-105 transition" title="Monokrom Modern"></button>
+                </div>
+            </div>
+
+            <hr class="border-slate-800">
+
+            <!-- Step 3: Edit & Manage Chapters -->
+            <div class="space-y-2.5">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 block">
+                    <i class="fa-solid fa-pen-ruler mr-1"></i> Akses Edit & Struktur
+                </span>
+                <p class="text-xs text-slate-400 leading-relaxed">
+                    Anda bisa <strong class="text-white">klik langsung teks atau gambar</strong> mana pun pada poster di sebelah kanan untuk mengeditnya, atau gunakan tombol di bawah:
+                </p>
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                    <button onclick="addNewChapter()" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-emerald-300 border border-slate-700 flex items-center justify-center gap-1.5 transition">
+                        <i class="fa-solid fa-plus"></i> Tambah Bab
+                    </button>
+                    <button onclick="openStructuredEditor()" class="py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-blue-300 border border-slate-700 flex items-center justify-center gap-1.5 transition">
+                        <i class="fa-solid fa-list-check"></i> Form Editor
+                    </button>
+                </div>
+            </div>
+
+            <hr class="border-slate-800">
+
+            <!-- Step 4: Export Options Summary -->
+            <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 space-y-2.5">
+                <div class="text-xs font-bold text-slate-200 flex items-center gap-2">
+                    <i class="fa-solid fa-download text-emerald-400"></i> Pilihan Hasil Unduhan
+                </div>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="exportPoster('pdf')" class="py-2 px-2 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-bold flex flex-col items-center gap-1 transition">
+                        <i class="fa-solid fa-file-pdf text-base"></i>
+                        <span>PDF</span>
+                    </button>
+                    <button onclick="exportPoster('image')" class="py-2 px-2 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex flex-col items-center gap-1 transition">
+                        <i class="fa-solid fa-file-image text-base"></i>
+                        <span>Gambar</span>
+                    </button>
+                    <button onclick="exportPoster('html')" class="py-2 px-2 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold flex flex-col items-center gap-1 transition">
+                        <i class="fa-solid fa-file-code text-base"></i>
+                        <span>HTML</span>
+                    </button>
+                </div>
+            </div>
+        </aside>
+
+        <!-- RIGHT AREA: Interactive Poster Canvas Preview -->
+        <main class="lg:col-span-8 xl:col-span-9 flex flex-col items-center">
+            <!-- Helper Banner -->
+            <div class="w-full max-w-[1024px] mb-3 px-4 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-slate-300 text-xs flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span><strong>Tips:</strong> Klik pada teks mana pun di dalam poster untuk mengedit isi secara langsung, atau klik ikon kamera pada gambar untuk mengganti foto.</span>
+                </div>
+                <span class="text-[11px] font-mono text-slate-400">12 Komponen Standar Modul Lengkap</span>
+            </div>
+
+            <!-- Hidden File Input for Replacing Any Specific Image on the Poster -->
+            <input type="file" id="specificImageUploader" accept="image/*" class="hidden" onchange="handleSpecificImageUpload(event)">
+
+            <!-- THE POSTER CANVAS -->
+            <div id="posterWrapper" class="w-full max-w-[1024px] overflow-x-auto rounded-2xl shadow-2xl border border-slate-700/80">
+                <article id="posterCanvas" class="theme-emerald edit-mode-active bg-slate-50 text-slate-800 w-full min-w-[780px] shadow-xl overflow-hidden relative">
+
+                    <!-- =========================================================
+                         1. GAMBAR DAN JUDUL (HERO HEADER)
+                         ========================================================= -->
+                    <header class="poster-bg-primary-dark text-white relative overflow-hidden">
+                        <!-- Decorative Grid Pattern -->
+                        <div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: radial-gradient(#ffffff 1px, transparent 1px); background-size: 20px 20px;"></div>
+
+                        <div class="relative z-10 p-8 lg:p-10 grid grid-cols-12 gap-8 items-center">
+                            <!-- Title & Subtitle Column -->
+                            <div class="col-span-7 space-y-4">
+                                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-semibold tracking-wider uppercase text-amber-300">
+                                    <i class="fa-solid fa-book-open-reader"></i>
+                                    <span contenteditable="true" id="p_badge">POSTER MODUL PEMBELAJARAN TERPADU</span>
+                                </div>
+
+                                <h1 contenteditable="true" id="p_title" class="font-serif text-3xl lg:text-4xl font-extrabold leading-tight tracking-tight text-white">
+                                    Transformasi Kecerdasan Buatan & Literasi Data Modern
+                                </h1>
+
+                                <p contenteditable="true" id="p_subtitle" class="text-sm lg:text-base text-slate-200 leading-relaxed font-normal">
+                                    Panduan Komprehensif Penguasaan Konsep, Implementasi Teknis, Studi Kasus Lapangan, dan Evaluasi Mandiri Berbasis Kompetensi.
+                                </p>
+
+                                <!-- Quick Meta Strip -->
+                                <div class="pt-2 flex flex-wrap items-center gap-4 text-xs text-slate-300 border-t border-white/15">
+                                    <span class="flex items-center gap-1.5">
+                                        <i class="fa-solid fa-award text-amber-400"></i>
+                                        <span contenteditable="true" id="p_edition">Edisi Kurikulum Unggulan 2026</span>
+                                    </span>
+                                    <span class="flex items-center gap-1.5">
+                                        <i class="fa-solid fa-layer-group text-emerald-300"></i>
+                                        <span contenteditable="true" id="p_level_tag">Teori, Praktik & Evaluasi</span>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Main Poster Image Column -->
+                            <div class="col-span-5">
+                                <div class="relative group rounded-2xl overflow-hidden border-4 border-white/20 shadow-2xl bg-slate-900 aspect-[4/3]">
+                                    <img id="p_main_image" src="" alt="Gambar Utama Poster" class="w-full h-full object-cover">
+                                    <button onclick="triggerImageReplace('main')" class="img-replace-trigger opacity-0 pointer-events-none absolute inset-0 bg-slate-950/60 flex flex-col items-center justify-center text-white text-xs font-bold gap-1.5 transition-opacity">
+                                        <i class="fa-solid fa-camera text-xl text-amber-400"></i>
+                                        <span>Ganti Foto Utama</span>
+                                    </button>
+                                </div>
+                                <p contenteditable="true" id="p_main_caption" class="text-[11px] text-center text-slate-300 mt-2 italic">
+                                    Gambar 1.0 — Visualisasi Utama Tema Modul Pembelajaran
+                                </p>
+                            </div>
+                        </div>
+                    </header>
+
+                    <!-- MAIN POSTER BODY GRID -->
+                    <div class="p-8 lg:p-10 space-y-8 bg-slate-50">
+
+                        <!-- =========================================================
+                             ROW 1: IDENTITAS MODUL, KATA PENGANTAR & DAFTAR ISI
+                             ========================================================= -->
+                        <section class="grid grid-cols-12 gap-6 items-stretch">
+
+                            <!-- 4. IDENTITAS MODUL -->
+                            <div class="col-span-4 bg-white rounded-2xl p-5 border poster-border-theme shadow-sm flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center gap-2.5 mb-3 pb-2 border-b border-slate-100">
+                                        <span class="w-7 h-7 rounded-lg poster-bg-primary text-white flex items-center justify-center text-xs font-bold">01</span>
+                                        <h2 class="font-bold text-sm uppercase tracking-wider poster-text-primary">Identitas Modul</h2>
+                                    </div>
+                                    <dl class="space-y-2 text-xs" id="p_identity_list">
+                                        <div class="flex justify-between py-1 border-b border-dashed border-slate-200">
+                                            <dt class="text-slate-500 font-medium">Kode Modul</dt>
+                                            <dd contenteditable="true" id="p_id_code" class="font-mono font-bold text-slate-800">MOD-EDU-2026</dd>
+                                        </div>
+                                        <div class="flex justify-between py-1 border-b border-dashed border-slate-200">
+                                            <dt class="text-slate-500 font-medium">Penyusun</dt>
+                                            <dd contenteditable="true" id="p_id_author" class="font-semibold text-slate-800 text-right">Tim Pengembang Akademik</dd>
+                                        </div>
+                                        <div class="flex justify-between py-1 border-b border-dashed border-slate-200">
+                                            <dt class="text-slate-500 font-medium">Instansi</dt>
+                                            <dd contenteditable="true" id="p_id_inst" class="font-semibold text-slate-800 text-right">Pusat Pendidikan & Pelatihan</dd>
+                                        </div>
+                                        <div class="flex justify-between py-1 border-b border-dashed border-slate-200">
+                                            <dt class="text-slate-500 font-medium">Sasaran / Jenjang</dt>
+                                            <dd contenteditable="true" id="p_id_target" class="font-semibold text-slate-800 text-right"> Umum / Mahasiswa / Praktisi</dd>
+                                        </div>
+                                        <div class="flex justify-between py-1">
+                                            <dt class="text-slate-500 font-medium">Alokasi Waktu</dt>
+                                            <dd contenteditable="true" id="p_id_time" class="font-semibold text-slate-800 text-right">4 Pertemuan (12 JP)</dd>
+                                        </div>
+                                    </dl>
+                                </div>
+                                <div class="mt-4 pt-2.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+                                    <span>Status: <strong class="poster-text-primary" contenteditable="true">Terverifikasi</strong></span>
+                                    <span contenteditable="true">Versi 1.0</span>
+                                </div>
+                            </div>
+
+                            <!-- 2. KATA PENGANTAR -->
+                            <div class="col-span-5 bg-white rounded-2xl p-5 border poster-border-theme shadow-sm flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center gap-2.5 mb-3 pb-2 border-b border-slate-100">
+                                        <span class="w-7 h-7 rounded-lg poster-bg-primary text-white flex items-center justify-center text-xs font-bold">02</span>
+                                        <h2 class="font-bold text-sm uppercase tracking-wider poster-text-primary">Kata Pengantar</h2>
+                                    </div>
+                                    <p contenteditable="true" id="p_foreword" class="text-xs text-slate-600 leading-relaxed text-justify">
+                                        Puji syukur kami panjatkan atas tersusunnya poster modul pembelajaran ini. Materi mengenai Transformasi Kecerdasan Buatan & Literasi Data Modern dirancang secara sistematis untuk menjembatani pemahaman konseptual dan keterampilan praktis di lapangan. Melalui pendekatan visual dan terstruktur ini, peserta didik diharapkan mampu menguasai kompetensi inti secara efektif, mandiri, dan aplikatif.
+                                    </p>
+                                </div>
+                                <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] italic text-slate-500">
+                                    <span contenteditable="true" id="p_foreword_sign">— Tim Penyusun Modul</span>
+                                    <span contenteditable="true" id="p_foreword_date">November 2026</span>
+                                </div>
+                            </div>
+
+                            <!-- 3. DAFTAR ISI -->
+                            <div class="col-span-3 poster-bg-light rounded-2xl p-5 border poster-border-theme shadow-sm">
+                                <div class="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200/70">
+                                    <span class="w-7 h-7 rounded-lg poster-bg-primary text-white flex items-center justify-center text-xs font-bold">03</span>
+                                    <h2 class="font-bold text-sm uppercase tracking-wider poster-text-primary">Daftar Isi</h2>
+                                </div>
+                                <ol contenteditable="true" id="p_toc" class="space-y-1.5 text-xs text-slate-700 font-medium list-decimal list-inside">
+                                    <li>Identitas & Kata Pengantar</li>
+                                    <li>Tujuan Pembelajaran</li>
+                                    <li>Bab 1: Fondasi & Konsep Dasar</li>
+                                    <li>Bab 2: Metodologi & Arsitektur</li>
+                                    <li>Bab 3: Implementasi & Optimasi</li>
+                                    <li>Studi Kasus & Ilustrasi Nyata</li>
+                                    <li>Ringkasan Akhir & Glosarium</li>
+                                    <li>Daftar Periksa Praktis</li>
+                                    <li>Latihan, Evaluasi & Penutup</li>
+                                </ol>
+                            </div>
+
+                        </section>
+
+                        <!-- =========================================================
+                             5. TUJUAN PEMBELAJARAN
+                             ========================================================= -->
+                        <section class="bg-white rounded-2xl p-6 border poster-border-theme shadow-sm">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="w-7 h-7 rounded-lg poster-bg-primary text-white flex items-center justify-center text-xs font-bold">04</span>
+                                    <div>
+                                        <h2 class="font-bold text-sm uppercase tracking-wider poster-text-primary">Tujuan Pembelajaran & Capaian Kompetensi</h2>
+                                        <p class="text-[11px] text-slate-500">Indikator keberhasilan yang diharapkan setelah mempelajari poster modul ini</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs font-semibold px-3 py-1 rounded-full poster-bg-light poster-text-primary">Capaian Utama</span>
+                            </div>
+
+                            <div id="p_objectives_grid" class="grid grid-cols-3 gap-4">
+                                <!-- Populated dynamically or editable directly -->
+                            </div>
+                        </section>
+
+                        <!-- =========================================================
+                             6. BAB-BAB DAN GAMBAR SETIAP BAB
+                             ========================================================= -->
+                        <section class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="w-7 h-7 rounded-lg poster-bg-primary text-white flex items-center justify-center text-xs font-bold">05</span>
+                                    <div>
+                                        <h2 class="font-bold text-sm uppercase tracking-wider poster-text-primary">Pembahasan Bab & Ilustrasi Materi</h2>
+                                        <p class="text-[11px] text-slate-500">Uraian materi inti yang dilengkapi visualisasi pada setiap bab</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="p_chapters_container" class="grid grid-cols-3 gap-5">
+                                <!-- Chapters rendered here -->
+                            </div>
+                        </section>
+
+                        <!-- =========================================================
+                             7. STUDI KASUS DAN GAMBAR ILUSTRASI
+                             ========================================================= -->
+                        <section class="bg-white rounded-2xl border-2 poster-border-primary shadow-md overflow-hidden">
+                            <div class="poster-bg-primary text-white px-6 py-3 flex items-center justify-between">
+                                <div class="flex items-center gap-2.5">
+                                    <span class="w-6 h-6 rounded bg-white/20 text-white flex items-center justify-center text-xs font-bold">06</span>
+                                    <h2 class="font-bold text-sm uppercase tracking-wider">Studi Kasus Terpadu & Gambar Ilustrasi</h2>
+                                </div>
+                                <span class="text-xs bg-amber-400 text-slate-950 font-bold px-2.5 py-0.5 rounded-full">Analisis Kontekstual</span>
+                            </div>
+
+                            <div class="p-6 grid grid-cols-12 gap-6 items-center">
+                                <!-- Case Study Image -->
+                                <div class="col-span-5">
+                                    <div class="relative rounded-xl overflow-hidden border border-slate-200 aspect-[16/10] bg-slate-100 shadow">
+                                        <img id="p_case_image" src="" alt="Ilustrasi Studi Kasus" class="w-full h-full object-cover">
+                                        <button onclick="triggerImageReplace('case')" class="img-replace-trigger opacity-0 pointer-events-none absolute inset-0 bg-slate-950/60 flex flex-col items-center justify-center text-white text-xs font-bold gap-1 transition-opacity">
+                                            <i class="fa-solid fa-camera text-lg text-amber-400"></i>
+                                            <span>Ganti Gambar Studi Kasus</span>
+                                        </button>
+                                    </div>
+                                    <p contenteditable="true" id="p_case_caption" class="text-[11px] text-slate-500 mt-1.5 text-center italic">
+                                        Ilustrasi Skenario Implementasi & Pemecahan Masalah Lapangan
+                                    </p>
+                                </div>
+
+                                <!-- Case Study Narrative -->
+                                <div class="col-span-7 space-y-3">
+                                    <h3 contenteditable="true" id="p_case_title" class="font-bold text-base text-slate-900">
+                                        Studi Kasus: Akselerasi Efisiensi Operasional Melalui Integrasi Sistem Cerdas
+                                    </h3>
+                                    <p contenteditable="true" id="p_case_background" class="text-xs text-slate-600 leading-relaxed">
+                                        <strong>Latar Belakang Masalah:</strong> Sebuah organisasi mengalami kendala dalam mengolah ribuan data harian secara manual sehingga pengambilan keputusan strategis terlambat hingga 40%. Diperlukan pendekatan terstruktur berdasarkan prinsip modul ini untuk mengatasi hambatan tersebut.
+                                    </p>
+                                    <div class="grid grid-cols-2 gap-3 pt-1">
+                                        <div class="poster-bg-light p-3 rounded-xl border poster-border-theme">
+                                            <span class="text-[11px] font-bold uppercase poster-text-primary block mb-1">Solusi & Tindakan</span>
+                                            <p contenteditable="true" id="p_case_solution" class="text-xs text-slate-700 leading-snug">
+                                                Menerapkan kerangka kerja bertahap mulai dari pemetaan masalah, otomasi alur data, hingga validasi kualitas berkala oleh tim lintas fungsi.
+                                            </p>
+                                        </div>
+                                        <div class="bg-amber-50 p-3 rounded-xl border border-amber-200">
+                                            <span class="text-[11px] font-bold uppercase text-amber-800 block mb-1">Hasil & Dampak Nyata</span>
+                                            <p contenteditable="true" id="p_case_impact" class="text-xs text-slate-700 leading-snug">
+                                                Waktu pemrosesan meningkat 65% lebih cepat, tingkat kesalahan turun drastis, dan kepuasan pengguna akhir mencapai 92%.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- =========================================================
+                             ROW: 8. RINGKASAN AKHIR, 9. GLOSARIUM, 10. DAFTAR PERIKSA PRAKTIS
+                             ========================================================= -->
+                        <section class="grid grid-cols-12 gap-6 items-stretch">
+
+                            <!-- 8. RINGKASAN AKHIR -->
+                            <div class="col-span-4 bg-white rounded-2xl p-5 border poster-border-theme shadow-sm flex flex-col justify-between">
+                                <div>
+                                    <div class="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
+                                        <span class="w-7 h-7 rounded-lg poster-bg-primary text-white flex items-center justify-center text-xs font-bold">07</span>
+                                        <h2 class="font-bold text-sm uppercase tracking-wider poster-text-primary">Ringkasan Akhir</h2>
+                                    </div>
+                                    <ul id="p_summary_list" class="space-y-2.5 text-xs text-slate-700">
+                                        <!-- Populated dynamically -->
+                                    </ul>
+                                </div>
+                                <div class="mt-4 p-2.5 rounded-xl poster-bg-light text-[11px] poster-text-primary font-medium text-center" contenteditable="true">
+                                    "Pemahaman konsep yang kuat adalah kunci keberhasilan eksekusi di lapangan."
+                                </div>
+                            </div>
+
+                            <!-- 9. GLOSARIUM -->
+                            <div class="col-span-4 bg-white rounded-2xl p-5 border poster-border-theme shadow-sm">
+                                <div class="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
+                                    <span class="w-7 h-7 rounded-lg poster-bg-primary text-white flex items-center justify-center text-xs font-bold">08</span>
+                                    <h2 class="font-bold text-sm uppercase tracking-wider poster-text-primary">Glosarium Istilah</h2>
+                                </div>
+                                <div id="p_glossary_list" class="space-y-2.5 text-xs">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+
+                            <!-- 10. DAFTAR PERIKSA PRAKTIS -->
+                            <div class="col-span-4 bg-white rounded-2xl p-5 border poster-border-theme shadow-sm">
+                                <div class="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100">
+                                    <span class="w-7 h-7 rounded-lg poster-bg-primary text-white flex items-center justify-center text-xs font-bold">09</span>
+                                    <h2 class="font-bold text-sm uppercase tracking-wider poster-text-primary">Daftar Periksa Praktis</h2>
+                                </div>
+                                <div id="p_checklist_list" class="space-y-2 text-xs text-slate-700">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+
+                        </section>
+
+                        <!-- =========================================================
+                             ROW: 12. LATIHAN DAN EVALUASI & 11. PENUTUP SERTA CATATAN
+                             ========================================================= -->
+                        <section class="grid grid-cols-12 gap-6 items-stretch">
+
+                            <!-- 12. LATIHAN DAN EVALUASI -->
+                            <div class="col-span-7 bg-white rounded-2xl p-6 border poster-border-theme shadow-sm">
+                                <div class="flex items-center justify-between mb-3 pb-2 border-b border-slate-100">
+                                    <div class="flex items-center gap-2.5">
+                                        <span class="w-7 h-7 rounded-lg poster-bg-primary text-white flex items-center justify-center text-xs font-bold">10</span>
+                                        <h2 class="font-bold text-sm uppercase tracking-wider poster-text-primary">Latihan Mandiri & Evaluasi Kompetensi</h2>
+                                    </div>
+                                    <span class="text-[11px] font-semibold text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-full">Uji Pemahaman</span>
+                                </div>
+
+                                <div id="p_evaluation_list" class="space-y-3 text-xs text-slate-700">
+                                    <!-- Populated dynamically -->
+                                </div>
+                            </div>
+
+                            <!-- 11. PENUTUP SERTA CATATAN -->
+                            <div class="col-span-5 poster-bg-primary-dark text-white rounded-2xl p-6 shadow-md flex flex-col justify-between">
+                                <div class="space-y-3">
+                                    <div class="flex items-center gap-2.5 pb-2 border-b border-white/15">
+                                        <span class="w-7 h-7 rounded-lg bg-amber-400 text-slate-950 flex items-center justify-center text-xs font-bold">11</span>
+                                        <h2 class="font-bold text-sm uppercase tracking-wider text-amber-300">Penutup & Catatan Penting</h2>
+                                    </div>
+
+                                    <div>
+                                        <h3 class="text-xs font-bold uppercase tracking-wider text-emerald-300 mb-1">Kesimpulan Penutup</h3>
+                                        <p contenteditable="true" id="p_closing_text" class="text-xs text-slate-200 leading-relaxed">
+                                            Penguasaan materi dalam modul ini bukan sekadar menghafal teori, melainkan membangun pola pikir analitis dan kebiasaan kerja yang terstandarisasi. Teruslah berlatih dan evaluasi capaian Anda secara berkala.
+                                        </p>
+                                    </div>
+
+                                    <div class="bg-white/10 rounded-xl p-3.5 border border-white/15">
+                                        <h3 class="text-xs font-bold uppercase tracking-wider text-amber-300 mb-1 flex items-center gap-1.5">
+                                            <i class="fa-solid fa-note-sticky"></i> Catatan Instruktur / Pembelajar
+                                        </h3>
+                                        <p contenteditable="true" id="p_notes_text" class="text-xs text-slate-200 leading-relaxed italic">
+                                            • Gunakan Daftar Periksa Praktis sebelum memulai proyek nyata.<br>
+                                            • Diskusikan hasil jawaban Latihan & Evaluasi bersama rekan sejawat atau mentor.<br>
+                                            • Simpan poster ini sebagai referensi cepat di ruang belajar atau kerja Anda.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 pt-3 border-t border-white/15 flex items-center justify-between text-[11px] text-slate-300">
+                                    <span contenteditable="true" id="p_footer_copy">© 2026 Modul Pembelajaran Terpadu</span>
+                                    <span class="font-mono text-amber-300" contenteditable="true">EduPoster Standard v2.6</span>
+                                </div>
+                            </div>
+
+                        </section>
+
+                    </div>
+                </article>
+            </div>
+        </main>
+    </div>
+
+    <!-- =================================================================
+         MODAL PANEL EDITOR LENGKAP (STRUCTURED FORM EDITOR)
+         ================================================================= -->
+    <div id="structuredEditorModal" class="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden text-slate-100">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-sliders text-emerald-400"></i>
+                    <h3 class="font-bold text-base">Editor Isi Poster Lengkap (12 Bagian)</h3>
+                </div>
+                <button onclick="closeStructuredEditor()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 overflow-y-auto space-y-6 text-xs">
+                <!-- 1. Judul & Subjudul -->
+                <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
+                    <h4 class="font-bold text-emerald-400 uppercase tracking-wider">1. Header, Judul & Identitas Modul</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 mb-1">Judul Poster</label>
+                            <input id="form_title" type="text" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Subjudul / Deskripsi Singkat</label>
+                            <input id="form_subtitle" type="text" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Kode Modul</label>
+                            <input id="form_id_code" type="text" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Penyusun</label>
+                            <input id="form_id_author" type="text" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Instansi</label>
+                            <input id="form_id_inst" type="text" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Sasaran & Alokasi Waktu</label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <input id="form_id_target" type="text" placeholder="Sasaran" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white">
+                                <input id="form_id_time" type="text" placeholder="Waktu" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Kata Pengantar & Tujuan Pembelajaran -->
+                <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
+                    <h4 class="font-bold text-emerald-400 uppercase tracking-wider">2. Kata Pengantar & Tujuan Pembelajaran</h4>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Kata Pengantar</label>
+                        <textarea id="form_foreword" rows="3" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-slate-400 mb-1">Tujuan Pembelajaran (Pisahkan setiap tujuan dengan baris baru)</label>
+                        <textarea id="form_objectives" rows="3" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white"></textarea>
+                    </div>
+                </div>
+
+                <!-- 3. Bab-bab Materi -->
+                <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h4 class="font-bold text-emerald-400 uppercase tracking-wider">3. Daftar Bab & Gambar Setiap Bab</h4>
+                        <button onclick="addNewChapterFromModal()" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold">
+                            + Tambah Bab
+                        </button>
+                    </div>
+                    <div id="form_chapters_list" class="space-y-3">
+                        <!-- Dynamic chapter inputs -->
+                    </div>
+                </div>
+
+                <!-- 4. Studi Kasus -->
+                <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
+                    <h4 class="font-bold text-emerald-400 uppercase tracking-wider">4. Studi Kasus & Hasil</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div class="md:col-span-2">
+                            <label class="block text-slate-400 mb-1">Judul Studi Kasus</label>
+                            <input id="form_case_title" type="text" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-slate-400 mb-1">Latar Belakang Masalah</label>
+                            <textarea id="form_case_bg" rows="2" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Solusi & Tindakan</label>
+                            <textarea id="form_case_sol" rows="2" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Hasil & Dampak Nyata</label>
+                            <textarea id="form_case_imp" rows="2" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. Ringkasan, Glosarium, Checklist, Latihan & Penutup -->
+                <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800 space-y-3">
+                    <h4 class="font-bold text-emerald-400 uppercase tracking-wider">5. Ringkasan, Glosarium, Checklist, Latihan & Penutup</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-slate-400 mb-1">Ringkasan Akhir (Satu poin per baris)</label>
+                            <textarea id="form_summary" rows="4" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Glosarium (Format: Istilah: Penjelasan, satu per baris)</label>
+                            <textarea id="form_glossary" rows="4" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Daftar Periksa Praktis (Satu item per baris)</label>
+                            <textarea id="form_checklist" rows="4" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Soal Latihan & Evaluasi (Satu pertanyaan per baris)</label>
+                            <textarea id="form_evaluation" rows="4" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Paragraf Penutup</label>
+                            <textarea id="form_closing" rows="2" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-slate-400 mb-1">Catatan Penting</label>
+                            <textarea id="form_notes" rows="2" class="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-white"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 bg-slate-950 border-t border-slate-800 flex items-center justify-end gap-3">
+                <button onclick="closeStructuredEditor()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold">Batal</button>
+                <button onclick="saveStructuredEditor()" class="px-5 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-bold shadow-lg">Simpan Perubahan ke Poster</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toastNotification" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 border border-emerald-500/40 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs font-semibold pointer-events-none">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-base"></i>
+        <span id="toastMessage">Berhasil diperbarui!</span>
+    </div>
+
+    <!-- =================================================================
+         APPLICATION LOGIC & SMART ILLUSTRATION / CONTENT ENGINE
+         ================================================================= -->
+    <script>
+        // Application State
+        let posterState = {
+            theme: 'theme-emerald',
+            inlineEdit: true,
+            customMainPhoto: null,
+            activeImageReplaceTarget: null, // 'main', 'case', or 'chapter_0', etc.
+            objectives: [],
+            chapters: [],
+            summary: [],
+            glossary: [],
+            checklist: [],
+            evaluation: []
+        };
+
+        // Toast Helper
+        function showToast(message, iconClass = 'fa-solid fa-circle-check text-emerald-400') {
+            const toast = document.getElementById('toastNotification');
+            const icon = document.getElementById('toastIcon');
+            const msg = document.getElementById('toastMessage');
+            icon.className = iconClass + ' text-base';
+            msg.textContent = message;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3200);
+        }
+
+        // Dynamic High-Res Canvas Illustration Generator (CORS-safe for PDF/Image/HTML export)
+        function createVisualIllustration(titleText, tagText, paletteIndex = 0) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 800;
+            canvas.height = 520;
+            const ctx = canvas.getContext('2d');
+
+            const palettes = [
+                ['#064e3b', '#047857', '#10b981', '#f59e0b'],
+                ['#1e3a8a', '#1d4ed8', '#3b82f6', '#f43f5e'],
+                ['#7c2d12', '#c2410c', '#fb923c', '#14b8a6'],
+                ['#4c1d95', '#6d28d9', '#a78bfa', '#eab308'],
+                ['#0f172a', '#334155', '#38bdf8', '#facc15']
+            ];
+            const pal = palettes[paletteIndex % palettes.length];
+
+            // Background Gradient
+            const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            grad.addColorStop(0, pal[0]);
+            grad.addColorStop(0.6, pal[1]);
+            grad.addColorStop(1, pal[2]);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Tech/Academic Grid Overlay
+            ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 40) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 40) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Abstract Geometric Circles & Nodes
+            ctx.fillStyle = 'rgba(255,255,255,0.08)';
+            ctx.beginPath();
+            ctx.arc(650, 120, 160, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = 'rgba(255,255,255,0.06)';
+            ctx.beginPath();
+            ctx.arc(140, 420, 190, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Isometric / Infographic Card Graphic inside Canvas
+            ctx.fillStyle = 'rgba(15, 23, 42, 0.45)';
+            ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(70, 70, 660, 380, 24);
+            ctx.fill();
+            ctx.stroke();
+
+            // Accent Bar & Decorative Charts
+            ctx.fillStyle = pal[3];
+            ctx.beginPath();
+            ctx.roundRect(110, 115, 95, 10, 5);
+            ctx.fill();
+
+            // Mini Visual Bars on Right
+            const barHeights = [90, 140, 110, 175, 150];
+            barHeights.forEach((bh, idx) => {
+                ctx.fillStyle = idx === 3 ? pal[3] : 'rgba(255,255,255,0.22)';
+                ctx.beginPath();
+                ctx.roundRect(490 + idx * 40, 360 - bh, 26, bh, 6);
+                ctx.fill();
+            });
+
+            // Tag Pill
+            ctx.fillStyle = 'rgba(255,255,255,0.18)';
+            ctx.beginPath();
+            ctx.roundRect(110, 145, 260, 34, 17);
+            ctx.fill();
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 15px "Plus Jakarta Sans", sans-serif';
+            ctx.fillText(tagText.toUpperCase().slice(0, 30), 130, 167);
+
+            // Wrapped Title Text inside Illustration
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 28px "Plus Jakarta Sans", sans-serif';
+            const words = titleText.split(' ');
+            let line = '';
+            let yPos = 230;
+            for (let n = 0; n < words.length; n++) {
+                const testLine = line + words[n] + ' ';
+                const metrics = ctx.measureText(testLine);
+                if (metrics.width > 350 && n > 0) {
+                    ctx.fillText(line, 110, yPos);
+                    line = words[n] + ' ';
+                    yPos += 38;
+                    if (yPos > 350) break;
+                } else {
+                    line = testLine;
+                }
+            }
+            ctx.fillText(line, 110, yPos);
+
+            // Footer caption inside illustration
+            ctx.fillStyle = 'rgba(255,255,255,0.7)';
+            ctx.font = '500 14px "JetBrains Mono", monospace';
+            ctx.fillText('VISUALISASI KONSEP & ILUSTRASI MODUL', 110, 410);
+
+            return canvas.toDataURL('image/png');
+        }
+
+        // Smart Content Generator based on User's Title
+        function generateFullPosterFromTitle() {
+            const rawTitle = document.getElementById('inputMainTitle').value.trim() || 'Modul Pembelajaran Terpadu & Inovasi Praktis';
+
+            // Update Header
+            document.getElementById('p_title').textContent = rawTitle;
+            document.getElementById('p_subtitle').textContent = `Panduan Terstruktur Penguasaan Konsep, Analisis Studi Kasus, serta Evaluasi Kompetensi pada Bidang ${rawTitle}.`;
+
+            // Update Module Identity Code
+            const initials = rawTitle
+                .split(/\s+/)
+                .map(w => w.replace(/[^a-zA-Z]/g, '')[0])
+                .filter(Boolean)
+                .join('')
+                .toUpperCase()
+                .slice(0, 4) || 'MOD';
+            document.getElementById('p_id_code').textContent = `${initials}-2026-01`;
+
+            // Update Foreword
+            document.getElementById('p_foreword').textContent = `Puji syukur kami panjatkan atas tersusunnya poster modul "${rawTitle}" ini. Materi disajikan secara visual, ringkas, dan sistematis agar memudahkan peserta didik maupun praktisi memahami konsep esensial, menelaah studi kasus nyata, serta menguji kesiapan implementasi secara mandiri.`;
+
+            // Update Objectives (3 items)
+            posterState.objectives = [
+                {
+                    code: 'TP-01',
+                    title: 'Pemahaman Konsep Dasar',
+                    desc: `Mampu menjelaskan prinsip fundamental, ruang lingkup, dan urgensi dari ${rawTitle} secara akurat.`
+                },
+                {
+                    code: 'TP-02',
+                    title: 'Analisis & Penerapan Metodologi',
+                    desc: `Mampu menerapkan kerangka kerja teknis dan prosedur standar dalam menyelesaikan permasalahan terkait ${rawTitle}.`
+                },
+                {
+                    code: 'TP-03',
+                    title: 'Evaluasi & Optimasi Berkelanjutan',
+                    desc: `Mampu mengevaluasi kinerja, memitigasi risiko, dan merumuskan solusi inovatif pada studi kasus nyata.`
+                }
+            ];
+
+            // Update Chapters (3 core chapters with their own generated illustrations)
+            posterState.chapters = [
+                {
+                    num: 'BAB 1',
+                    title: `Fondasi & Paradigma ${rawTitle}`,
+                    content: `Membahas definisi inti, sejarah perkembangan, komponen utama, serta landasan berpikir kritis yang membangun ekosistem ${rawTitle} di era modern.`,
+                    keyPoint: 'Fokus: Konsep Dasar & Pemetaan Sistem',
+                    image: createVisualIllustration(`Bab 1: Fondasi ${rawTitle}`, 'BAB 01 • KONSEP INTI', 0)
+                },
+                {
+                    num: 'BAB 2',
+                    title: 'Arsitektur, Metode & Alur Kerja',
+                    content: `Menguraikan tahapan kerja sistematis, instrumen pendukung, standar prosedur operasional (SOP), serta integrasi antar-komponen agar berjalan efektif.`,
+                    keyPoint: 'Fokus: Metodologi & Prosedur Teknis',
+                    image: createVisualIllustration(`Bab 2: Metodologi & Alur Kerja`, 'BAB 02 • METODOLOGI', 1)
+                },
+                {
+                    num: 'BAB 3',
+                    title: 'Strategi Implementasi & Pengendalian Mutu',
+                    content: `Menjelaskan langkah eksekusi di lapangan, indikator keberhasilan (KPI), teknik audit kualitas, serta langkah antisipasi terhadap potensi kendala.`,
+                    keyPoint: 'Fokus: Eksekusi & Evaluasi Kinerja',
+                    image: createVisualIllustration(`Bab 3: Implementasi & Mutu`, 'BAB 03 • IMPLEMENTASI', 2)
+                }
+            ];
+
+            // Update Table of Contents automatically
+            updateTableOfContents();
+
+            // Update Main Image (if user hasn't uploaded a custom photo, generate a rich visual)
+            if (!posterState.customMainPhoto) {
+                document.getElementById('p_main_image').src = createVisualIllustration(rawTitle, 'VISUAL UTAMA MODUL', 0);
+            }
+
+            // Update Case Study & Case Illustration
+            document.getElementById('p_case_title').textContent = `Studi Kasus: Transformasi & Penerapan ${rawTitle} pada Skenario Lapangan`;
+            document.getElementById('p_case_background').innerHTML = `<strong>Latar Belakang Masalah:</strong> Sebuah tim operasional menghadapi kendala rendahnya efisiensi dan belum terstandarisasinya penerapan <em>${rawTitle}</em>, yang mengakibatkan pemborosan sumber daya hingga 35% pada kuartal berjalan.`;
+            document.getElementById('p_case_solution').textContent = `Melakukan restrukturisasi alur kerja mengikuti pedoman Bab 1 hingga Bab 3, disertai pelatihan intensif dan penggunaan daftar periksa terstandar.`;
+            document.getElementById('p_case_impact').textContent = `Efisiensi kerja meningkat 68% dalam 2 bulan, tingkat kesalahan operasional menurun drastis, dan standar mutu tercapai secara konsisten.`;
+            document.getElementById('p_case_image').src = createVisualIllustration(`Studi Kasus: ${rawTitle}`, 'STUDI KASUS NYATA', 3);
+
+            // Update Summary (Ringkasan Akhir)
+            posterState.summary = [
+                `${rawTitle} menuntut keseimbangan antara penguasaan teori dasar dan ketepatan eksekusi praktis.`,
+                `Penerapan metodologi yang terstruktur meminimalkan risiko kegagalan dan mempercepat pencapaian target.`,
+                `Evaluasi berkala menggunakan indikator terukur memastikan perbaikan berkelanjutan di setiap siklus kerja.`
+            ];
+
+            // Update Glossary (Glosarium)
+            posterState.glossary = [
+                { term: 'Kompetensi Inti', def: 'Kemampuan utama yang wajib dikuasai peserta setelah menuntaskan seluruh bab modul.' },
+                { term: 'Parameter Mutu', def: 'Tolok ukur kuantitatif maupun kualitatif untuk menilai keberhasilan implementasi.' },
+                { term: 'Mitigasi Risiko', def: 'Langkah terencana untuk mencegah dan mengurangi dampak kendala teknis di lapangan.' },
+                { term: 'Validasi Sistem', def: 'Proses pengujian menyeluruh guna memastikan hasil sesuai spesifikasi tujuan awal.' }
+            ];
+
+            // Update Practical Checklist (Daftar Periksa Praktis)
+            posterState.checklist = [
+                'Memahami seluruh capaian Tujuan Pembelajaran (TP-01 s/d TP-03)',
+                'Menyelesaikan telaah materi dan ilustrasi pada setiap Bab',
+                'Menganalisis alur masalah dan solusi pada Studi Kasus',
+                'Menyiapkan instrumen kerja sesuai standar operasional',
+                'Menjawab seluruh soal Latihan Mandiri & Evaluasi'
+            ];
+
+            // Update Evaluation (Latihan & Evaluasi)
+            posterState.evaluation = [
+                `Jelaskan mengapa pemahaman fondasi pada Bab 1 sangat menentukan keberhasilan implementasi "${rawTitle}"!`,
+                `Berdasarkan Studi Kasus di atas, identifikasi 2 langkah kritis yang paling berpengaruh terhadap peningkatan efisiensi!`,
+                `Susunlah rencana aksi singkat (3 langkah) untuk menerapkan prinsip modul ini di lingkungan belajar atau tempat kerja Anda!`
+            ];
+
+            // Closing & Notes
+            document.getElementById('p_closing_text').textContent = `Melalui poster modul "${rawTitle}" ini, diharapkan seluruh pembelajar memperoleh peta jalan yang jelas dari tahap konseptual hingga praktik nyata. Keberhasilan pembelajaran sangat bergantung pada konsistensi latihan dan refleksi mandiri.`;
+
+            renderDynamicSections();
+            showToast('Poster berhasil disusun otomatis dari judul!');
+        }
+
+        function updateTableOfContents() {
+            const tocEl = document.getElementById('p_toc');
+            let html = `
+                <li>Identitas & Kata Pengantar</li>
+                <li>Tujuan Pembelajaran</li>
+            `;
+            posterState.chapters.forEach((ch, idx) => {
+                html += `<li>Bab ${idx + 1}: ${ch.title}</li>`;
+            });
+            html += `
+                <li>Studi Kasus & Ilustrasi Nyata</li>
+                <li>Ringkasan Akhir & Glosarium</li>
+                <li>Daftar Periksa Praktis</li>
+                <li>Latihan, Evaluasi & Penutup</li>
+            `;
+            tocEl.innerHTML = html;
+        }
+
+        // Render Dynamic Array Sections into the Poster DOM
+        function renderDynamicSections() {
+            // 1. Objectives
+            const objGrid = document.getElementById('p_objectives_grid');
+            objGrid.innerHTML = posterState.objectives.map((obj, idx) => `
+                <div class="poster-bg-light rounded-xl p-4 border poster-border-theme relative">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-[11px] font-mono font-bold px-2 py-0.5 rounded poster-bg-primary text-white" contenteditable="true">${obj.code}</span>
+                        <i class="fa-solid fa-bullseye poster-text-secondary text-sm"></i>
+                    </div>
+                    <h3 contenteditable="true" class="font-bold text-xs text-slate-900 mb-1">${obj.title}</h3>
+                    <p contenteditable="true" class="text-xs text-slate-600 leading-relaxed">${obj.desc}</p>
+                </div>
+            `).join('');
+
+            // 2. Chapters
+            const chContainer = document.getElementById('p_chapters_container');
+            chContainer.innerHTML = posterState.chapters.map((ch, idx) => `
+                <div class="bg-white rounded-2xl border poster-border-theme shadow-sm overflow-hidden flex flex-col justify-between">
+                    <div>
+                        <div class="relative aspect-[16/10] bg-slate-900 overflow-hidden border-b border-slate-100">
+                            <img id="p_chapter_img_${idx}" src="${ch.image}" alt="${ch.title}" class="w-full h-full object-cover">
+                            <span class="absolute top-2.5 left-2.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider poster-bg-primary text-white shadow">
+                                ${ch.num}
+                            </span>
+                            <button onclick="triggerImageReplace('chapter_${idx}')" class="img-replace-trigger opacity-0 pointer-events-none absolute inset-0 bg-slate-950/60 flex flex-col items-center justify-center text-white text-xs font-bold gap-1 transition-opacity">
+                                <i class="fa-solid fa-camera text-base text-amber-400"></i>
+                                <span>Ganti Gambar ${ch.num}</span>
+                            </button>
+                        </div>
+                        <div class="p-4 space-y-2">
+                            <h3 contenteditable="true" onblur="syncChapterEdit(${idx}, 'title', this.innerText)" class="font-bold text-sm text-slate-900 leading-snug">${ch.title}</h3>
+                            <p contenteditable="true" onblur="syncChapterEdit(${idx}, 'content', this.innerText)" class="text-xs text-slate-600 leading-relaxed">${ch.content}</p>
+                        </div>
+                    </div>
+                    <div class="px-4 py-2.5 poster-bg-light border-t poster-border-theme flex items-center justify-between text-[11px]">
+                        <span contenteditable="true" onblur="syncChapterEdit(${idx}, 'keyPoint', this.innerText)" class="font-semibold poster-text-primary">${ch.keyPoint}</span>
+                        ${posterState.chapters.length > 1 ? `
+                            <button onclick="removeChapter(${idx})" class="img-replace-trigger opacity-0 pointer-events-none text-rose-600 hover:text-rose-800 font-bold" title="Hapus Bab">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            // 3. Summary
+            const sumList = document.getElementById('p_summary_list');
+            sumList.innerHTML = posterState.summary.map((item, idx) => `
+                <li class="flex items-start gap-2">
+                    <i class="fa-solid fa-circle-check poster-text-secondary mt-1 shrink-0"></i>
+                    <span contenteditable="true" onblur="posterState.summary[${idx}] = this.innerText" class="leading-relaxed">${item}</span>
+                </li>
+            `).join('');
+
+            // 4. Glossary
+            const glosList = document.getElementById('p_glossary_list');
+            glosList.innerHTML = posterState.glossary.map((g, idx) => `
+                <div class="p-2.5 rounded-xl bg-slate-50 border border-slate-200/80">
+                    <span contenteditable="true" onblur="posterState.glossary[${idx}].term = this.innerText" class="font-bold poster-text-primary block">${g.term}</span>
+                    <span contenteditable="true" onblur="posterState.glossary[${idx}].def = this.innerText" class="text-slate-600 leading-snug block mt-0.5">${g.def}</span>
+                </div>
+            `).join('');
+
+            // 5. Practical Checklist
+            const checkList = document.getElementById('p_checklist_list');
+            checkList.innerHTML = posterState.checklist.map((c, idx) => `
+                <label class="flex items-start gap-2.5 p-2 rounded-lg hover:bg-slate-50 border border-transparent hover:border-slate-200 transition cursor-pointer">
+                    <input type="checkbox" checked class="mt-0.5 rounded text-emerald-600 focus:ring-0">
+                    <span contenteditable="true" onblur="posterState.checklist[${idx}] = this.innerText" class="leading-snug">${c}</span>
+                </label>
+            `).join('');
+
+            // 6. Evaluation Questions
+            const evalList = document.getElementById('p_evaluation_list');
+            evalList.innerHTML = posterState.evaluation.map((q, idx) => `
+                <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-start gap-3">
+                    <span class="w-6 h-6 rounded-full poster-bg-secondary text-white font-bold flex items-center justify-center shrink-0 text-[11px]">Q${idx + 1}</span>
+                    <div class="flex-1">
+                        <p contenteditable="true" onblur="posterState.evaluation[${idx}] = this.innerText" class="font-medium text-slate-800 leading-relaxed">${q}</p>
+                        <div class="mt-1.5 border-b border-dashed border-slate-300 pb-1 text-[10px] text-slate-400 italic" contenteditable="true">
+                            Ruang catatan jawaban / indikator penilaian...
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function syncChapterEdit(idx, field, val) {
+            if (posterState.chapters[idx]) {
+                posterState.chapters[idx][field] = val.trim();
+                if (field === 'title') updateTableOfContents();
+            }
+        }
+
+        // Preset Topic Selector
+        function applyPresetTopic(topicTitle) {
+            document.getElementById('inputMainTitle').value = topicTitle;
+            generateFullPosterFromTitle();
+        }
+
+        // Main Photo Upload Handler
+        function handleMainPhotoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                posterState.customMainPhoto = e.target.result;
+                document.getElementById('p_main_image').src = e.target.result;
+                document.getElementById('photoStatusBadge').textContent = 'Foto Kustom Aktif';
+                document.getElementById('photoStatusBadge').className = 'text-[11px] text-emerald-400 font-semibold';
+                showToast('Foto utama poster berhasil diperbarui!');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Replace Any Image on the Poster (Main, Chapter 1..N, or Case Study)
+        function triggerImageReplace(targetKey) {
+            posterState.activeImageReplaceTarget = targetKey;
+            document.getElementById('specificImageUploader').click();
+        }
+
+        function handleSpecificImageUpload(event) {
+            const file = event.target.files[0];
+            if (!file || !posterState.activeImageReplaceTarget) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                const target = posterState.activeImageReplaceTarget;
+                if (target === 'main') {
+                    posterState.customMainPhoto = dataUrl;
+                    document.getElementById('p_main_image').src = dataUrl;
+                } else if (target === 'case') {
+                    document.getElementById('p_case_image').src = dataUrl;
+                } else if (target.startsWith('chapter_')) {
+                    const idx = parseInt(target.split('_')[1], 10);
+                    if (posterState.chapters[idx]) {
+                        posterState.chapters[idx].image = dataUrl;
+                        document.getElementById(`p_chapter_img_${idx}`).src = dataUrl;
+                    }
+                }
+                showToast('Gambar pada poster berhasil diganti!');
+                event.target.value = '';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Regenerate Visual Illustrations
+        function regenerateAllIllustrations() {
+            posterState.customMainPhoto = null;
+            const rawTitle = document.getElementById('p_title').innerText.trim();
+            const randSeed = Math.floor(Math.random() * 5);
+            document.getElementById('p_main_image').src = createVisualIllustration(rawTitle, 'VISUAL UTAMA MODUL', randSeed);
+            document.getElementById('p_case_image').src = createVisualIllustration(`Studi Kasus: ${rawTitle}`, 'STUDI KASUS NYATA', randSeed + 1);
+            posterState.chapters.forEach((ch, idx) => {
+                ch.image = createVisualIllustration(ch.title, `${ch.num} • ILUSTRASI`, randSeed + idx + 1);
+            });
+            document.getElementById('photoStatusBadge').textContent = 'Visual AI Aktif';
+            renderDynamicSections();
+            showToast('Seluruh ilustrasi visual berhasil diperbarui!');
+        }
+
+        // Add or Remove Chapters
+        function addNewChapter() {
+            const nextNum = posterState.chapters.length + 1;
+            posterState.chapters.push({
+                num: `BAB ${nextNum}`,
+                title: `Pengembangan Lanjutan & Evaluasi Tahap ${nextNum}`,
+                content: `Uraian materi tambahan mengenai pendalaman teknis, studi komparasi, dan strategi adaptasi terbaik untuk memperkuat kompetensi peserta.`,
+                keyPoint: `Fokus: Pendalaman Bab ${nextNum}`,
+                image: createVisualIllustration(`Bab ${nextNum}: Pengembangan Lanjutan`, `BAB 0${nextNum} • LANJUTAN`, nextNum)
+            });
+            renderDynamicSections();
+            updateTableOfContents();
+            showToast(`Bab ${nextNum} berhasil ditambahkan!`);
+        }
+
+        function removeChapter(idx) {
+            if (posterState.chapters.length <= 1) return;
+            posterState.chapters.splice(idx, 1);
+            posterState.chapters.forEach((ch, i) => {
+                ch.num = `BAB ${i + 1}`;
+            });
+            renderDynamicSections();
+            updateTableOfContents();
+            showToast('Bab berhasil dihapus.');
+        }
+
+        // Theme Switcher
+        function setPosterTheme(themeName) {
+            const canvas = document.getElementById('posterCanvas');
+            canvas.classList.remove('theme-emerald', 'theme-indigo', 'theme-terracotta', 'theme-royal', 'theme-slate');
+            canvas.classList.add(themeName);
+            posterState.theme = themeName;
+            showToast('Tema warna poster berhasil diubah!');
+        }
+
+        // Toggle Direct Inline Edit Mode
+        function toggleInlineEditMode() {
+            posterState.inlineEdit = !posterState.inlineEdit;
+            const canvas = document.getElementById('posterCanvas');
+            const btn = document.getElementById('btnToggleInlineEdit');
+            const label = document.getElementById('inlineEditLabel');
+
+            if (posterState.inlineEdit) {
+                canvas.classList.add('edit-mode-active');
+                label.textContent = 'Edit Langsung: AKTIF';
+                btn.className = 'px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-all bg-blue-500/20 border-blue-400/40 text-blue-300 hover:bg-blue-500/30';
+                showToast('Mode Edit Langsung diaktifkan.');
+            } else {
+                canvas.classList.remove('edit-mode-active');
+                label.textContent = 'Mode Pratinjau Bersih';
+                btn.className = 'px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 border transition-all bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700';
+                showToast('Mode Pratinjau Bersih (garis bantu disembunyikan).');
+            }
+        }
+
+        // =================================================================
+        // STRUCTURED MODAL EDITOR FUNCTIONS
+        // =================================================================
+        function openStructuredEditor() {
+            document.getElementById('form_title').value = document.getElementById('p_title').innerText.trim();
+            document.getElementById('form_subtitle').value = document.getElementById('p_subtitle').innerText.trim();
+            document.getElementById('form_id_code').value = document.getElementById('p_id_code').innerText.trim();
+            document.getElementById('form_id_author').value = document.getElementById('p_id_author').innerText.trim();
+            document.getElementById('form_id_inst').value = document.getElementById('p_id_inst').innerText.trim();
+            document.getElementById('form_id_target').value = document.getElementById('p_id_target').innerText.trim();
+            document.getElementById('form_id_time').value = document.getElementById('p_id_time').innerText.trim();
+
+            document.getElementById('form_foreword').value = document.getElementById('p_foreword').innerText.trim();
+            document.getElementById('form_objectives').value = posterState.objectives.map(o => `${o.title}: ${o.desc}`).join('\n');
+
+            renderModalChapterInputs();
+
+            document.getElementById('form_case_title').value = document.getElementById('p_case_title').innerText.trim();
+            document.getElementById('form_case_bg').value = document.getElementById('p_case_background').innerText.replace('Latar Belakang Masalah:', '').trim();
+            document.getElementById('form_case_sol').value = document.getElementById('p_case_solution').innerText.trim();
+            document.getElementById('form_case_imp').value = document.getElementById('p_case_impact').innerText.trim();
+
+            document.getElementById('form_summary').value = posterState.summary.join('\n');
+            document.getElementById('form_glossary').value = posterState.glossary.map(g => `${g.term}: ${g.def}`).join('\n');
+            document.getElementById('form_checklist').value = posterState.checklist.join('\n');
+            document.getElementById('form_evaluation').value = posterState.evaluation.join('\n');
+            document.getElementById('form_closing').value = document.getElementById('p_closing_text').innerText.trim();
+            document.getElementById('form_notes').value = document.getElementById('p_notes_text').innerText.trim();
+
+            const modal = document.getElementById('structuredEditorModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function renderModalChapterInputs() {
+            const container = document.getElementById('form_chapters_list');
+            container.innerHTML = posterState.chapters.map((ch, idx) => `
+                <div class="p-3 rounded-lg bg-slate-900 border border-slate-800 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-emerald-300">Bab ${idx + 1}</span>
+                        <button onclick="triggerImageReplace('chapter_${idx}')" class="text-[11px] px-2 py-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700">
+                            <i class="fa-solid fa-camera mr-1"></i> Ubah Gambar Bab ${idx + 1}
+                        </button>
+                    </div>
+                    <input type="text" id="modal_ch_title_${idx}" value="${ch.title}" placeholder="Judul Bab" class="w-full p-2 rounded bg-slate-950 border border-slate-700 text-white">
+                    <textarea id="modal_ch_content_${idx}" rows="2" placeholder="Isi pembahasan bab" class="w-full p-2 rounded bg-slate-950 border border-slate-700 text-white">${ch.content}</textarea>
+                </div>
+            `).join('');
+        }
+
+        function addNewChapterFromModal() {
+            addNewChapter();
+            renderModalChapterInputs();
+        }
+
+        function closeStructuredEditor() {
+            const modal = document.getElementById('structuredEditorModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function saveStructuredEditor() {
+            document.getElementById('p_title').textContent = document.getElementById('form_title').value;
+            document.getElementById('inputMainTitle').value = document.getElementById('form_title').value;
+            document.getElementById('p_subtitle').textContent = document.getElementById('form_subtitle').value;
+            document.getElementById('p_id_code').textContent = document.getElementById('form_id_code').value;
+            document.getElementById('p_id_author').textContent = document.getElementById('form_id_author').value;
+            document.getElementById('p_id_inst').textContent = document.getElementById('form_id_inst').value;
+            document.getElementById('p_id_target').textContent = document.getElementById('form_id_target').value;
+            document.getElementById('p_id_time').textContent = document.getElementById('form_id_time').value;
+
+            document.getElementById('p_foreword').textContent = document.getElementById('form_foreword').value;
+
+            // Parse Objectives
+            const objLines = document.getElementById('form_objectives').value.split('\n').map(s => s.trim()).filter(Boolean);
+            posterState.objectives = objLines.map((line, idx) => {
+                const parts = line.split(':');
+                return {
+                    code: `TP-0${idx + 1}`,
+                    title: parts.length > 1 ? parts[0].trim() : `Tujuan Pembelajaran ${idx + 1}`,
+                    desc: parts.length > 1 ? parts.slice(1).join(':').trim() : line
+                };
+            });
+
+            // Save Chapters
+            posterState.chapters.forEach((ch, idx) => {
+                const tEl = document.getElementById(`modal_ch_title_${idx}`);
+                const cEl = document.getElementById(`modal_ch_content_${idx}`);
+                if (tEl && cEl) {
+                    ch.title = tEl.value;
+                    ch.content = cEl.value;
+                }
+            });
+
+            // Save Case Study
+            document.getElementById('p_case_title').textContent = document.getElementById('form_case_title').value;
+            document.getElementById('p_case_background').innerHTML = `<strong>Latar Belakang Masalah:</strong> ${document.getElementById('form_case_bg').value}`;
+            document.getElementById('p_case_solution').textContent = document.getElementById('form_case_sol').value;
+            document.getElementById('p_case_impact').textContent = document.getElementById('form_case_imp').value;
+
+            // Save Lists
+            posterState.summary = document.getElementById('form_summary').value.split('\n').map(s => s.trim()).filter(Boolean);
+            posterState.glossary = document.getElementById('form_glossary').value.split('\n').map(s => s.trim()).filter(Boolean).map(line => {
+                const parts = line.split(':');
+                return {
+                    term: parts[0] ? parts[0].trim() : 'Istilah',
+                    def: parts.slice(1).join(':').trim() || 'Penjelasan istilah'
+                };
+            });
+            posterState.checklist = document.getElementById('form_checklist').value.split('\n').map(s => s.trim()).filter(Boolean);
+            posterState.evaluation = document.getElementById('form_evaluation').value.split('\n').map(s => s.trim()).filter(Boolean);
+
+            document.getElementById('p_closing_text').textContent = document.getElementById('form_closing').value;
+            document.getElementById('p_notes_text').textContent = document.getElementById('form_notes').value;
+
+            renderDynamicSections();
+            updateTableOfContents();
+            closeStructuredEditor();
+            showToast('Seluruh perubahan isi poster berhasil disimpan!');
+        }
+
+        // =================================================================
+        // EXPORT ENGINE: PDF, IMAGE (PNG), AND STANDALONE HTML
+        // =================================================================
+        async function exportPoster(format) {
+            const posterEl = document.getElementById('posterCanvas');
+            const wasEditActive = posterEl.classList.contains('edit-mode-active');
+
+            // Temporarily disable edit outlines & camera overlays so export looks super clean
+            posterEl.classList.remove('edit-mode-active');
+
+            const cleanTitle = (document.getElementById('p_title').innerText || 'Poster_Modul')
+                .replace(/[^a-zA-Z0-9\s]/g, '')
+                .trim()
+                .replace(/\s+/g, '_')
+                .slice(0, 40) || 'Poster_Modul';
+
+            try {
+                if (format === 'html') {
+                    showToast('Menyiapkan file HTML mandiri...', 'fa-solid fa-spinner fa-spin text-amber-400');
+
+                    // Clone poster and strip contenteditable attributes for clean standalone viewing
+                    const clone = posterEl.cloneNode(true);
+                    clone.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+                    clone.querySelectorAll('.img-replace-trigger').forEach(el => el.remove());
+
+                    const styles = Array.from(document.querySelectorAll('style')).map(s => s.outerHTML).join('\n');
+                    const standaloneHTML = `<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${document.getElementById('p_title').innerText.trim()}</title>
+    <script src="https://cdn.tailwindcss.com"><\/script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    ${styles}
+</head>
+<body class="bg-slate-900 py-8 px-4 flex justify-center">
+    <div class="max-w-[1024px] w-full shadow-2xl rounded-2xl overflow-hidden">
+        ${clone.outerHTML}
+    </div>
+</body>
+</html>`;
+
+                    const blob = new Blob([standaloneHTML], { type: 'text/html;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${cleanTitle}.html`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    showToast('File HTML berhasil diunduh!');
+                } else if (format === 'image' || format === 'pdf') {
+                    showToast(`Merender poster ke ${format.toUpperCase()} resolusi tinggi...`, 'fa-solid fa-spinner fa-spin text-emerald-400');
+
+                    const canvas = await html2canvas(posterEl, {
+                        scale: 2,
+                        useCORS: true,
+                        allowTaint: true,
+                        backgroundColor: '#f8fafc'
+                    });
+
+                    if (format === 'image') {
+                        const imgData = canvas.toDataURL('image/png');
+                        const link = document.createElement('a');
+                        link.download = `${cleanTitle}.png`;
+                        link.href = imgData;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        showToast('Gambar Poster (PNG) berhasil diunduh!');
+                    } else if (format === 'pdf') {
+                        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+                        const { jsPDF } = window.jspdf;
+
+                        // Create custom-sized single-page infographic PDF matching exact poster aspect ratio
+                        const pxWidth = canvas.width;
+                        const pxHeight = canvas.height;
+                        const pdfWidthMm = 297; // A3 width in mm
+                        const pdfHeightMm = (pxHeight * pdfWidthMm) / pxWidth;
+
+                        const pdf = new jsPDF({
+                            orientation: pdfHeightMm > pdfWidthMm ? 'portrait' : 'landscape',
+                            unit: 'mm',
+                            format: [pdfWidthMm, pdfHeightMm]
+                        });
+
+                        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidthMm, pdfHeightMm);
+                        pdf.save(`${cleanTitle}.pdf`);
+                        showToast('File PDF Poster berhasil diunduh!');
+                    }
+                }
+            } catch (err) {
+                console.error('Export error:', err);
+                showToast('Gagal mengekspor, silakan coba lagi.', 'fa-solid fa-triangle-exclamation text-rose-400');
+            } finally {
+                if (wasEditActive) {
+                    posterEl.classList.add('edit-mode-active');
+                }
+            }
+        }
+
+        // Initialize Poster on Window Load
+        window.onload = function() {
+            generateFullPosterFromTitle();
+        };
+    </script>
+</body>
+</html>
